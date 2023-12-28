@@ -278,7 +278,7 @@ qtde_cul = st.sidebar.slider("Selecione a quantidade:", 0, 165, 10)
 
 st.sidebar.subheader('', divider='gray')
 st.sidebar.subheader('Selecione os tipos de culinárias que deseja visualizar:')
-s
+
 culinaria = st.sidebar.multiselect(
     "Escolha o tipo de culinária:",
     df.loc[:, "cuisines"].unique().tolist(),
