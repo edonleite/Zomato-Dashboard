@@ -2,352 +2,246 @@
 # Bibliotecas Necessárias
 # ==================================================
 import pandas as pd
-import plotly as pl
-import haversine as hs
 import inflection
-import numpy as np
 import plotly.express as px
-import folium 
 import streamlit as st
-from folium.plugins import MarkerCluster
-from streamlit_folium import folium_static
-from PIL import Image 
-
-
-#-------------------------------------Início das Funções-----------------------------------
-
-st.set_page_config(page_title='Visão Culinária', page_icon='🍲', layout='wide') 
+from PIL import Image
 
 # ==================================================
-# Funções
+# Configuração da Página
 # ==================================================
-def pior_tip_culi(df):
-    
-    """ Está função tem a responsabilidade de preenchimento piores tipos de culinárias por média de avaliação. 
-        Conteúdo:
-        1- Colocar o nome dos piores tipos de culinárias.
-    """              
-    filtro=df['aggregate_rating'] <= 3.2
-    
-    df=(df.loc [filtro, ['cuisines', 'aggregate_rating']].groupby(['cuisines'])
-            .max().sort_values('aggregate_rating', ascending=True).reset_index())
-    
-    df=df.head(restaurantes) 
+st.set_page_config(
+    page_title="Visão Culinária",
+    page_icon="🍲",
+    layout="wide"
+)
 
-    fig=(px.bar(df, x='cuisines', y='aggregate_rating', color='cuisines',  text_auto=True,
-    labels={'cuisines':'Tipos de Culinárias', 'aggregate_rating':'Média de valiação',}))
-    
-    st.markdown(f' #### Os {qtde_cul} piores tipos de culinárias')
-
-    fig.update_traces(textfont_size=10, textangle=1, textposition="outside", cliponaxis=False, textfont_color='black')
-    
-    st.plotly_chart(fig, use_container_width=True) 
-    
-    return fig
-    
-
-def melhs_tip_culi(df):
-    
-    """ Está função tem a responsabilidade de preenchimento dos melhores tipos de culinárias por média de avaliação. 
-        Conteúdo:
-        1- Colocar o nome dos melhores tipos de culinárias.
-    """              
-    filtro=df['aggregate_rating'] <= 4.9
-
-    df=(df.loc [filtro, ['cuisines', 'aggregate_rating']].groupby(['cuisines'])
-            .max().sort_values('aggregate_rating', ascending=False).reset_index())
-
-    df=df.head(restaurantes) 
-
-    fig=(px.bar(df, x='cuisines', y='aggregate_rating', color='cuisines', text_auto=True,
-    labels={'cuisines':'Tipos de Culinárias', 'aggregate_rating':'Média de Avaliação',}))
-
-    st.markdown(f' #### Os {qtde_cul} melhores tipos de culinárias')
-
-    fig.update_traces(textfont_size=10, textangle=1, textposition="outside", cliponaxis=False, textfont_color='black')
-
-    st.plotly_chart(fig, use_container_width=True)
-    
-    return fig
-
-
-def acet_ped_online_entre(df):
-    
-    """ Está função tem a responsabilidade de Preenchimento dos Tipos de culinárias 
-        Conteúdo:
-        1- colocar o nome dos restaurantes que aceitam pedidos on-line e fazem entregas 
-    """        
-    st.write('#### Tipos de culinárias que aceitam pedidos on-line e fazem entregas')
-    
-    colunas=['country', 'city', 'cuisines', 'is_delivering_now', 'has_online_delivery', 'votes']
-
-    entregas=(df['has_online_delivery'] == 1) & (df['is_delivering_now'] == 1)
-        
-    df=(df.loc [entregas, colunas].groupby(['cuisines']).count()
-            .sort_values('is_delivering_now', ascending=False).reset_index())
-    
-    st.dataframe(df, use_container_width=800, height=380)
-    
-    return df
-
-        
-def melhs_culi(df):
-    
-    """ Está função tem a responsabilidade de Preenchimento dos Tipos de culinárias 
-        Conteúdo:
-        1- colocar o nome das Maiores culinárias com preço médio de um prato pra duas pessoas.
-    """   
-    st.write(f'#### As {qtde_cul} maiores culinárias com preço médio de um prato para duas pessoas\n')
-        
-    colunas=['city', 'country', 'average_cost_for_two', 'cuisines', 'currency']
-        
-    df=(df.loc [:,colunas].groupby(['country', 'city', 'cuisines', 'currency']).max()
-            .sort_values('average_cost_for_two', ascending=False).reset_index()).head(qtde_cul)
-    
-    st.dataframe(df, use_container_width=800, height=380)
-    
-    return df
-
-def mel_culi (df, culinarias, top_n=5):
-    
-    """ Está função tem a responsabilidade de Preenchimento dos Tipos de culinários
-        Conteúdo:
-        1- colocar o nome dos Tipos de culinários com melhor avaliação.
-    """       
-    culinaria=df['cuisines'].isin(culinarias)
-
-    colunas=['restaurant_id', 'restaurant_name', 'aggregate_rating', 'cuisines', 'country', 'city', 'currency', 'average_cost_for_two']
-            
-    df=(df.loc [culinaria, colunas].groupby(['restaurant_id', 'restaurant_name'])
-            .max().sort_values('aggregate_rating', ascending=False).reset_index())
-    
-    for index, row in df.iterrows():
-        
-     st.metric(label=f'{row["cuisines"]}:', 
-                    value=f'{row["aggregate_rating"]}/5.0',
-                    help=f"""
-                    Nome do Restaurante:{row["restaurant_name"]}\n
-                    País:{row["country"]}\n 
-                    Cidade:{row["city"]},\n
-                    Preço para duas pessoas: {row["currency"]}{row["average_cost_for_two"]} 
-                    """)
-     
-     return index
-    
-
+# ==================================================
+# Funções Auxiliares
+# ==================================================
 def country_name(country_id):
-    
-    """ Está função tem a responsabilidade de preenchimento do nome dos países. 
-        Conteúdo:
-        1- colocar o nome dos países com base no código de cada país.
-    """    
-    COUNTRIES={
-    1: "India",
-    14: "Australia",
-    30: "Brazil",
-    37: "Canada",
-    94: "Indonesia",
-    148: "New Zeland",
-    162: "Philippines",
-    166: "Qatar",
-    184: "Singapure",
-    189: "South Africa",
-    191: "Sri Lanka",
-    208: "Turkey",
-    214: "United Arab Emirates",
-    215: "England",
-    216: "United States of America",}
-    
-    return COUNTRIES[country_id]
+    COUNTRIES = {
+        1: "India",
+        14: "Australia",
+        30: "Brazil",
+        37: "Canada",
+        94: "Indonesia",
+        148: "New Zeland",
+        162: "Philippines",
+        166: "Qatar",
+        184: "Singapure",
+        189: "South Africa",
+        191: "Sri Lanka",
+        208: "Turkey",
+        214: "United Arab Emirates",
+        215: "England",
+        216: "United States of America",
+    }
+    return COUNTRIES.get(country_id, "Unknown")
 
 
 def create_price_type(price_range):
-    
-    """ Está função tem a responsabilidade de criar o tipo de categoria de comida. 
-        Conteúdo:
-        1- Criar a categoria do tipo de comida com base no range de valores.
-    """        
-    if price_range == 1:
-        return "cheap"
-    elif price_range == 2:
-        return "normal"
-    elif price_range == 3:
-        return "expensive"
-    else:
-        return "gourmet"
-    
+    return (
+        "cheap" if price_range == 1 else
+        "normal" if price_range == 2 else
+        "expensive" if price_range == 3 else
+        "gourmet"
+    )
+
+
 def rename_columns(dataframe):
-        
-    """ Está função tem a responsabilidade de renomear as colunas do dataframe. 
-    Conteúdo:
-    1- Para renomear as colunas do dataframe.
-    """    
-    df=dataframe.copy()
-    title=lambda x: inflection.titleize(x)
-    snakecase=lambda x: inflection.underscore(x)
-    spaces=lambda x: x.replace(" ", "")
-    cols_old=list(df.columns)
-    cols_old=list(map(title, cols_old))
-    cols_old=list(map(spaces, cols_old))
-    cols_new=list(map(snakecase, cols_old))
-    df.columns=cols_new
-    
+    df = dataframe.copy()
+    cols = [inflection.titleize(c) for c in df.columns]
+    cols = [c.replace(" ", "") for c in cols]
+    cols = [inflection.underscore(c) for c in cols]
+    df.columns = cols
     return df
+
 
 def color_name(color_code):
-    
-    """ Está função tem a responsabilidade de criar o do nome das Cores. 
-    Conteúdo:
-    1- Criar o nome das cores com base nos códigos de cores.
-    """    
-    COLORS={
-    "3F7E00": "darkgreen",
-    "5BA829": "green",
-    "9ACD32": "lightgreen",
-    "CDD614": "orange",
-    "FFBA00": "red",
-    "CBCBC8": "darkred",
-    "FF7800": "darkred",}
-
-    return COLORS[color_code]
+    COLORS = {
+        "3F7E00": "darkgreen",
+        "5BA829": "green",
+        "9ACD32": "lightgreen",
+        "CDD614": "orange",
+        "FFBA00": "red",
+        "CBCBC8": "darkred",
+        "FF7800": "darkred",
+    }
+    return COLORS.get(color_code, "gray")
 
 
-def clean_code(df):
-    
-    """ Está função tem a responsabilidade de limpar o dataframe. 
-    
-        Tipos de Limpesa:
-        1- Utilizando para renomear e substituir espaço por underline;
-        2- Utilizando para criar a coluna com o nome dos países baseado nos códigos e na função country_name;
-        3- Criando a coluna com os nomes das cores da avaliação;
-        4- Criando a coluna com os nomes dos tipos de preço de comida (barato, normal e etc);
-        5- Removendo as linhas com NAs;
-        6- Todos os restaurantes somente por um tipo de culinária.
-        
-        Imput: Dataframe.
-        Output: Dataframe.   
-    """  
-    df=rename_columns(df)
-    
-    df['country']=df.loc[:, 'country_code'].apply(lambda x: country_name(x)) 
-    
-    df['color_rating_name']=df.loc[:, 'rating_color'].apply(lambda x: color_name(x)) 
-    
-    df['price_type']=df.loc[:, 'price_range'].apply(lambda x: create_price_type(x)) 
-    
-    df=df.dropna() 
-    df=df.drop_duplicates()
-    
-    df["cuisines"]=df.loc[:, "cuisines"].astype(str).apply(lambda x: x.split(",")[0])
-    
+# ==================================================
+# Cache de Dados
+# ==================================================
+@st.cache_data
+def load_data():
+    return pd.read_csv("dataset/zomato.csv")
+
+
+@st.cache_data
+def clean_data(df):
+    df = rename_columns(df)
+    df["country"] = df["country_code"].apply(country_name)
+    df["color_rating_name"] = df["rating_color"].apply(color_name)
+    df["price_type"] = df["price_range"].apply(create_price_type)
+    df = df.dropna().drop_duplicates()
+    df["cuisines"] = df["cuisines"].astype(str).apply(lambda x: x.split(",")[0])
     return df
-   
-#---------------------------Início da Estrutura lógica do código----------------------------
+
 
 # ==================================================
-# Import dataset
+# Funções de Análise
 # ==================================================
-df=pd.read_csv(r'dataset/zomato.csv')
+def melhores_culinarias(df, top_n, asc=False):
+    df = (
+        df.groupby("cuisines")["aggregate_rating"]
+        .mean()
+        .reset_index()
+        .sort_values("aggregate_rating", ascending=asc)
+        .head(top_n)
+    )
+
+    fig = px.bar(
+        df,
+        x="cuisines",
+        y="aggregate_rating",
+        color="cuisines",
+        text_auto=True,
+        labels={
+            "cuisines": "Tipos de Culinária",
+            "aggregate_rating": "Média de Avaliação",
+        },
+    )
+    return fig
+
+
+def culinarias_com_entrega(df):
+    df = (
+        df[(df["has_online_delivery"] == 1) & (df["is_delivering_now"] == 1)]
+        .groupby("cuisines")["restaurant_id"]
+        .nunique()
+        .reset_index()
+        .sort_values("restaurant_id", ascending=False)
+    )
+    return df
+
+
+def culinarias_mais_caras(df, top_n):
+    df = (
+        df.groupby(["cuisines", "currency"])["average_cost_for_two"]
+        .mean()
+        .reset_index()
+        .sort_values("average_cost_for_two", ascending=False)
+        .head(top_n)
+    )
+    return df
+
+
+def top_restaurantes_por_culinaria(df, culinaria):
+    df = (
+        df[df["cuisines"] == culinaria]
+        .sort_values("aggregate_rating", ascending=False)
+        .head(1)
+    )
+    return df.iloc[0] if not df.empty else None
+
 
 # ==================================================
-# Limpando os dados
+# Carregamento dos Dados
 # ==================================================
-df=clean_code(df)
+df_raw = load_data()
+df = clean_data(df_raw)
 
 # ==================================================
-# Barra Lateral
+# Sidebar
 # ==================================================
-image=Image.open('fome_03.jpg')
-st.sidebar.image(image, width=150)
+try:
+    image = Image.open("fome_03.jpg")
+    st.sidebar.image(image, width=150)
+except:
+    st.sidebar.warning("Imagem não encontrada")
 
-st.sidebar.title('Zomato Restaurants')
-st.sidebar.subheader('For the love of Food')
-st.sidebar.subheader('', divider='gray')
-
-st.sidebar.subheader('Selecione os países que deseja analisar:')
+st.sidebar.title("Zomato Restaurants")
+st.sidebar.subheader("For the love of Food")
+st.sidebar.divider()
 
 paises = st.sidebar.multiselect(
-    "Selecione o  país:",
-    df.loc[:, "country"].unique().tolist(),    
-    default=["Australia", "Brazil", "England", "India", "South Africa", "United States of America"])
+    "Selecione os países:",
+    sorted(df["country"].unique()),
+    default=[
+        "Australia",
+        "Brazil",
+        "England",
+        "India",
+        "South Africa",
+        "United States of America",
+    ],
+)
 
+qtde_cul = st.sidebar.slider("Quantidade de culinárias:", 1, 30, 10)
 
-st.sidebar.subheader('', divider='gray')
-st.sidebar.subheader('Selecione as quantidades de culinárias que deseja visualizar:')
-qtde_cul = st.sidebar.slider("Selecione a quantidade:", 0, 165, 10)
+culinarias = st.sidebar.multiselect(
+    "Selecione as culinárias:",
+    sorted(df["cuisines"].unique()),
+    default=[
+        "Italian",
+        "American",
+        "Arabian",
+        "Japanese",
+        "Brazilian",
+    ],
+)
 
-st.sidebar.subheader('', divider='gray')
-st.sidebar.subheader('Selecione os tipos de culinárias que deseja visualizar:')
+if st.sidebar.button("🔄 Atualizar dados"):
+    st.cache_data.clear()
+    st.rerun()
 
-culinaria = st.sidebar.multiselect(
-    "Escolha o tipo de culinária:",
-    df.loc[:, "cuisines"].unique().tolist(),
-    default=['American', 'Arabian', 'Brazilian', 'Burger', 'Coffee', 'Ice Cream', 'European', 'Italian', 'Japanese', 'Mexican', 'Pizza' ])
- 
-
-st.sidebar.subheader('', divider='gray')
-st.sidebar.subheader('Powered by: Edon Gomes Leite')
-
-#Filtro de Países
-todos_paises=df['country'].isin(paises) 
-df=df.loc[todos_paises, :]
-
-#Filtro Culinária
-culinaria1=df["cuisines"].isin(culinaria) 
-df=df.loc[culinaria1, :]
-
-
-restaurantes=qtde_cul
-
+st.sidebar.divider()
+st.sidebar.caption("Powered by Edon Gomes Leite")
 
 # ==================================================
-# Layout no Streamliy
+# Filtros
 # ==================================================
-st.markdown('## Visão de Negócio - Culinária')
-st.subheader('', divider='gray') 
+df = df[df["country"].isin(paises)]
+df = df[df["cuisines"].isin(culinarias)]
 
-st.subheader('Informações úteis para tomadas de decisões de negócio com base nos tipos de culinária:')
-st.subheader('', divider='gray')
+# ==================================================
+# Layout Principal
+# ==================================================
+st.markdown("## Visão de Negócio – Culinária")
+st.divider()
 
-st.markdown('#### Avaliações dos principais tipos culinários')
+st.subheader("⭐ Destaque por tipo de culinária")
 
+cols = st.columns(len(culinarias))
+for col, cul in zip(cols, culinarias):
+    with col:
+        info = top_restaurantes_por_culinaria(df, cul)
+        if info is not None:
+            st.metric(
+                label=cul,
+                value=f"{info['aggregate_rating']}/5.0",
+                help=f"""
+                Restaurante: {info['restaurant_name']}
+                País: {info['country']}
+                Cidade: {info['city']}
+                Preço (2 pessoas): {info['currency']} {info['average_cost_for_two']}
+                """,
+            )
 
-with st.container():
-    col1, col2, col3, col4, col5=st.columns(5, gap='small')
-    
-    with col1:
-       mel_culi(df, culinarias=['Italian'])
+st.divider()
+st.subheader("💰 Culinárias com maior custo médio")
+st.dataframe(culinarias_mais_caras(df, qtde_cul), use_container_width=True)
 
-    with col2:
-       mel_culi(df, culinarias=['American'])
-               
-    with col3:
-        mel_culi(df, culinarias=['Arabian'])
-        
-    with col4:
-        mel_culi(df, culinarias=['Japanese'])
-           
-    with col5:
-        mel_culi(df, culinarias=['Brazilian'])
-        
-st.subheader('', divider='gray')    
-    
+st.divider()
+st.subheader("🚴 Culinárias com pedidos online e entrega")
+st.dataframe(culinarias_com_entrega(df), use_container_width=True)
 
-with st.container():
-    melhs_culi(df)
-        
-st.subheader('', divider='gray')  
-      
+st.divider()
+st.subheader("🏆 Melhores culinárias por avaliação")
+st.plotly_chart(melhores_culinarias(df, qtde_cul, asc=False), use_container_width=True)
 
-with st.container():
-    acet_ped_online_entre(df)     
-    
-st.subheader('', divider='gray') 
-               
-               
-with st.container():
-    melhs_tip_culi(df)
-
-st.subheader('', divider='gray')            
-with st.container():
-    pior_tip_culi(df)
+st.divider()
+st.subheader("⚠️ Piores culinárias por avaliação")
+st.plotly_chart(melhores_culinarias(df, qtde_cul, asc=True), use_container_width=True)
