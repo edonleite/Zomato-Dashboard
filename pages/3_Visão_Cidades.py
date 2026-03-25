@@ -2,337 +2,258 @@
 # Bibliotecas Necessárias
 # ==================================================
 import pandas as pd
-import plotly as pl
-import haversine as hs
 import inflection
-import numpy as np
 import plotly.express as px
-import folium 
 import streamlit as st
-from folium.plugins import MarkerCluster
-from streamlit_folium import folium_static
-from PIL import Image 
-
-
-#-------------------------------------Início das Funções-----------------------------------
-
-st.set_page_config(page_title='Visão Cidades', page_icon='🏙', layout='wide') 
+from PIL import Image
 
 # ==================================================
-# Funções
+# Configuração da Página
 # ==================================================
-def ped_online(df):      
-    
-    """ Está função tem a responsabilidade de preenchimento das cidades com maior quantidade de pedidos on-line. 
-        Conteúdo:
-        1- colocar o nome dos restaurantes registrados com maior quantidade de pedidos on-line com base no código de cadas cidades.
-    """                       
-    media_acima=df['has_online_delivery'] == 1
+st.set_page_config(
+    page_title="Visão Cidades",
+    page_icon="🏙️",
+    layout="wide"
+)
 
-    df=(df.loc[media_acima, ['city','country', 'restaurant_id']].groupby(['city','country','restaurant_id'])
-                .count().reset_index())
-
-    df=(df.loc[:,['city','country', 'restaurant_id']].groupby(['city','country'])
-            .count().sort_values('restaurant_id', ascending=False ).reset_index())
-
-    fig=(px.bar(df, x='city', y='restaurant_id', title='Cidades com maior quantidade pedidos on-line',text_auto=True, color='country', 
-    labels={'restaurant_id':'Quantidade de Restaurantes', 'city':'Cidades', 'country' : 'País'}))
-
-    fig.update_traces(textfont_size=10, textangle=1, textposition="outside", cliponaxis=False, textfont_color='black') 
-    
-    return fig
-
-    
-def qnt_ent(df):
-    
-    """ Está função tem a responsabilidade de preenchimento das cidades com maior quantidade de entregas. 
-        Conteúdo:
-        1- colocar o nome dos restaurantes registrados com maior quantidade de entregas com base no código de cadas cidades.
-    """                
-    media_acima=df['is_delivering_now'] == 1
-
-    df=df.loc[media_acima, ['city','country', 'restaurant_id']].groupby(['city','country','restaurant_id']).count().reset_index()
-
-    df=(df.loc[:,['city','country', 'restaurant_id']].groupby(['city','country'])
-            .count().sort_values('restaurant_id', ascending=False ).reset_index())
-
-    fig=(px.bar(df, x='city', y='restaurant_id', title='Cidades com maior quantidade de entregas',text_auto=True, color='country', 
-    labels={'restaurant_id':'Quantidade de Restaurantes', 'city':'Cidades', 'country' : 'País'}))
-
-    fig.update_traces(textfont_size=10, textangle=1, textposition="outside", cliponaxis=False, textfont_color='black') 
-    
-    return fig
-
-
-def faz_rev(df):
-    
-    """ Está função tem a responsabilidade de preenchimento dos melhores restaurantes por cidades que fazem reservas. 
-        Conteúdo:
-        1- colocar o nome dos restaurantes registrados com médis acima de 2.5 com base no código de cada cidades.
-    """            
-    reservas=df['has_table_booking'] ==1
-    
-    df=(df.loc[reservas, ['city','country', 'restaurant_id']].groupby(['city', 'country', 'restaurant_id'])
-             .count().reset_index())
-
-    df=(df.loc[:,['city', 'country', 'restaurant_id']].groupby(['city', 'country'])
-            .count().sort_values('restaurant_id', ascending=False ).reset_index())
-
-    fig=(px.bar(df, x='city', y='restaurant_id', title='Melhores restaurantes por cidades que fazem reservas',text_auto=True, color='country', 
-    labels={'restaurant_id':'Quantidade de Restaurantes', 'city':'Cidades', 'country' : 'País'}))
-
-    fig.update_traces(textfont_size=10, textangle=1, textposition="outside", cliponaxis=False, textfont_color='black') 
-    
-    return fig
-
-
-def   med_acima2 (df):
-        
-    """ Está função tem a responsabilidade de Ppreenchimento da quantidade 8 melhores restaurantes na média de avaliação acima 2.5. 
-        Conteúdo:
-        1- colocar o nome dos restaurantes registrados com médis acima de 2.5 com base no código de cada cidades.
-    """            
-    media_acima=df['aggregate_rating'] >=2.5
-
-    df=df.loc[media_acima, ['city','country', 'restaurant_id']].groupby(['city','country','restaurant_id']).count().reset_index()
-
-    df=(df.loc[:,['city','country', 'restaurant_id']].groupby(['city','country'])
-            .count().sort_values('restaurant_id', ascending=False ).reset_index()).head(8)
-
-    fig=(px.bar(df, x='city', y='restaurant_id', title='8 Melhores restaurantes na média de avaliação acima 2.5',text_auto=True, color='country', 
-    labels={'restaurant_id':'Quantidade deRrestaurantes', 'city':'Cidades', 'country' : 'País'}))
-
-    fig.update_traces(textfont_size=10, textangle=1, textposition="outside", cliponaxis=False, textfont_color='black') 
-
-    return fig
-
-
-def   med_acima4 (df):
-    
-    """ Está função tem a responsabilidade de preenchimento da quantidade 8 melhores restaurantes na média de avaliação acima 4.0. 
-        Conteúdo:
-        1- colocar o nome dos restaurantes registrados com médis acima de 4.0 com base no código de cada cidades.
-    """            
-    media_acima=df['aggregate_rating'] >= 4.0
-
-    df=(df.loc[media_acima, ['city','country', 'restaurant_id']]
-            .groupby(['city','country','restaurant_id']).count().reset_index())
-
-    df=(df.loc[:,['city','country', 'restaurant_id']].groupby(['city','country'])
-            .count().sort_values('restaurant_id', ascending=False ).reset_index()).head(8)
-
-    fig=(px.bar(df, x='city', y='restaurant_id', title='8 Melhores restaurantes na média de avaliação acima 4.0',text_auto=True, color='country', 
-    labels={'restaurant_id':'Quantidade de Restaurantes', 'city':'Cidades', 'country' : 'País'}))
-
-    fig.update_traces(textfont_size=10, textangle=1, textposition="outside", cliponaxis=False, textfont_color='black') 
-    
-    return fig
-    
-
-def qnt_rest_cid (df):
-    
-    """ Está função tem a responsabilidade de preenchimento da quantidade de restaurantes registradas por cidades. 
-        Conteúdo:
-        1- colocar o nome dos restaurantes registrados com base no código de cada cidades.
-    """        
-    df=(df.loc[:,['city','restaurant_id','country']].groupby(['city','restaurant_id','country'])
-            .count().reset_index())
-
-    df=(df.loc[:,['city','restaurant_id','country']].groupby(['city', 'country' ])
-            .count().sort_values('restaurant_id', ascending=False ).reset_index())
-
-    fig=(px.bar(df, x='city', y='restaurant_id',color='country', title='Quantidade de restaurantes registrados por cidades', text_auto=True, 
-    labels={'restaurant_id': 'Total de Restaurantes', 'city': 'Cidades', 'country': 'País'}))
-
-    fig.update_traces(textfont_size=10, textangle=1, textposition="outside", cliponaxis=False, textfont_color='black')  
-    
-    return fig 
-
-
+# ==================================================
+# Funções Auxiliares
+# ==================================================
 def country_name(country_id):
-    
-    """ Está função tem a responsabilidade de preenchimento do nome dos países. 
-        Conteúdo:
-        1- colocar o nome dos países com base no código de cada país.
-    """    
-    COUNTRIES={
-    1: "India",
-    14: "Australia",
-    30: "Brazil",
-    37: "Canada",
-    94: "Indonesia",
-    148: "New Zeland",
-    162: "Philippines",
-    166: "Qatar",
-    184: "Singapure",
-    189: "South Africa",
-    191: "Sri Lanka",
-    208: "Turkey",
-    214: "United Arab Emirates",
-    215: "England",
-    216: "United States of America",}
-    
-    return COUNTRIES[country_id]
+    COUNTRIES = {
+        1: "India",
+        14: "Australia",
+        30: "Brazil",
+        37: "Canada",
+        94: "Indonesia",
+        148: "New Zeland",
+        162: "Philippines",
+        166: "Qatar",
+        184: "Singapure",
+        189: "South Africa",
+        191: "Sri Lanka",
+        208: "Turkey",
+        214: "United Arab Emirates",
+        215: "England",
+        216: "United States of America",
+    }
+    return COUNTRIES.get(country_id, "Unknown")
 
 
 def create_price_type(price_range):
-    
-    """ Está função tem a responsabilidade de criar o tipo de categoria de comida. 
-        Conteúdo:
-        1- Criar a categoria do tipo de comida com base no range de valores.
-    """        
-    if price_range == 1:
-        return "cheap"
-    elif price_range == 2:
-        return "normal"
-    elif price_range == 3:
-        return "expensive"
-    else:
-        return "gourmet"
-    
+    return (
+        "cheap" if price_range == 1 else
+        "normal" if price_range == 2 else
+        "expensive" if price_range == 3 else
+        "gourmet"
+    )
+
+
 def rename_columns(dataframe):
-        
-    """ Está função tem a responsabilidade de renomear as colunas do dataframe. 
-    Conteúdo:
-    1- Para renomear as colunas do dataframe.
-    """    
-    df=dataframe.copy()
-    title=lambda x: inflection.titleize(x)
-    snakecase=lambda x: inflection.underscore(x)
-    spaces=lambda x: x.replace(" ", "")
-    cols_old=list(df.columns)
-    cols_old=list(map(title, cols_old))
-    cols_old=list(map(spaces, cols_old))
-    cols_new=list(map(snakecase, cols_old))
-    df.columns=cols_new
-    
+    df = dataframe.copy()
+    cols = [inflection.titleize(c) for c in df.columns]
+    cols = [c.replace(" ", "") for c in cols]
+    cols = [inflection.underscore(c) for c in cols]
+    df.columns = cols
     return df
+
 
 def color_name(color_code):
-    
-    """ Está função tem a responsabilidade de criar o do nome das Cores. 
-    Conteúdo:
-    1- Criar o nome das cores com base nos códigos de cores.
-    """    
-    COLORS={
-    "3F7E00": "darkgreen",
-    "5BA829": "green",
-    "9ACD32": "lightgreen",
-    "CDD614": "orange",
-    "FFBA00": "red",
-    "CBCBC8": "darkred",
-    "FF7800": "darkred",}
-
-    return COLORS[color_code]
+    COLORS = {
+        "3F7E00": "darkgreen",
+        "5BA829": "green",
+        "9ACD32": "lightgreen",
+        "CDD614": "orange",
+        "FFBA00": "red",
+        "CBCBC8": "darkred",
+        "FF7800": "darkred",
+    }
+    return COLORS.get(color_code, "gray")
 
 
-def clean_code(df):
-    
-    """ Está função tem a responsabilidade de limpar o dataframe. 
-    
-        Tipos de Limpesa:
-        1- Utilizando para renomear e substituir espaço por underline;
-        2- Utilizando para criar a coluna com o nome dos países baseado nos códigos e na função country_name;
-        3- Criando a coluna com os nomes das cores da avaliação;
-        4- Criando a coluna com os nomes dos tipos de preço de comida (barato, normal e etc);
-        5- Removendo as linhas com NAs;
-        6- Todos os restaurantes somente por um tipo de culinária.
-        
-        Imput: Dataframe.
-        Output: Dataframe.   
-    """  
-    df=rename_columns(df)
-    
-    df['country']=df.loc[:, 'country_code'].apply(lambda x: country_name(x)) 
-    
-    df['color_rating_name']=df.loc[:, 'rating_color'].apply(lambda x: color_name(x)) 
-    
-    df['price_type']=df.loc[:, 'price_range'].apply(lambda x: create_price_type(x)) 
-    
-    df=df.dropna() 
-    df=df.drop_duplicates()
-    
-    df["cuisines"]=df.loc[:, "cuisines"].astype(str).apply(lambda x: x.split(",")[0])
-    
+# ==================================================
+# Cache de Dados
+# ==================================================
+@st.cache_data
+def load_data():
+    return pd.read_csv("dataset/zomato.csv")
+
+
+@st.cache_data
+def clean_data(df):
+    df = rename_columns(df)
+    df["country"] = df["country_code"].apply(country_name)
+    df["color_rating_name"] = df["rating_color"].apply(color_name)
+    df["price_type"] = df["price_range"].apply(create_price_type)
+    df = df.dropna().drop_duplicates()
+    df["cuisines"] = df["cuisines"].astype(str).apply(lambda x: x.split(",")[0])
     return df
-   
-#---------------------------Início da Estrutura lógica do código----------------------------
+
 
 # ==================================================
-# Import dataset
+# Funções de Visualização
 # ==================================================
-df=pd.read_csv(r'dataset/zomato.csv')
+def qnt_rest_cid(df):
+    df = (
+        df.groupby(["city", "country"])["restaurant_id"]
+        .nunique()
+        .reset_index()
+        .sort_values("restaurant_id", ascending=False)
+    )
+
+    return px.bar(
+        df,
+        x="city",
+        y="restaurant_id",
+        color="country",
+        text_auto=True,
+        title="Quantidade de restaurantes por cidade",
+        labels={"restaurant_id": "Total de Restaurantes", "city": "Cidades"},
+    )
+
+
+def med_acima(df, nota, titulo):
+    df = (
+        df[df["aggregate_rating"] >= nota]
+        .groupby(["city", "country"])["restaurant_id"]
+        .nunique()
+        .reset_index()
+        .sort_values("restaurant_id", ascending=False)
+        .head(8)
+    )
+
+    return px.bar(
+        df,
+        x="city",
+        y="restaurant_id",
+        color="country",
+        text_auto=True,
+        title=titulo,
+    )
+
+
+def faz_rev(df):
+    df = (
+        df[df["has_table_booking"] == 1]
+        .groupby(["city", "country"])["restaurant_id"]
+        .nunique()
+        .reset_index()
+        .sort_values("restaurant_id", ascending=False)
+    )
+
+    return px.bar(
+        df,
+        x="city",
+        y="restaurant_id",
+        color="country",
+        text_auto=True,
+        title="Restaurantes que aceitam reservas por cidade",
+    )
+
+
+def qnt_ent(df):
+    df = (
+        df[df["is_delivering_now"] == 1]
+        .groupby(["city", "country"])["restaurant_id"]
+        .nunique()
+        .reset_index()
+        .sort_values("restaurant_id", ascending=False)
+    )
+
+    return px.bar(
+        df,
+        x="city",
+        y="restaurant_id",
+        color="country",
+        text_auto=True,
+        title="Cidades com restaurantes em entrega ativa",
+    )
+
+
+def ped_online(df):
+    df = (
+        df[df["has_online_delivery"] == 1]
+        .groupby(["city", "country"])["restaurant_id"]
+        .nunique()
+        .reset_index()
+        .sort_values("restaurant_id", ascending=False)
+    )
+
+    return px.bar(
+        df,
+        x="city",
+        y="restaurant_id",
+        color="country",
+        text_auto=True,
+        title="Cidades com pedidos online",
+    )
+
 
 # ==================================================
-# Limpando os dados
+# Carregamento dos Dados
 # ==================================================
-df=clean_code(df)
-
-# ==================================================
-# Barra Lateral
-# ==================================================
-image=Image.open('cidade.jpg')
-st.sidebar.image(image, width=250)
-
-st.sidebar.title('Zomato Restaurants')
-st.sidebar.subheader('For the love of Food')
-st.sidebar.subheader('', divider='gray')
-
-st.sidebar.subheader('Selecione os países que deseja analisar:')
-
-paises=st.sidebar.multiselect(
-    "Selecione o  país:",
-    df.loc[:, "country"].unique().tolist(),     
-    default=["Brazil", "Canada", "Indonesia", "New Zeland", "Philippines", "Qatar", "South Africa", "United Arab Emirates" ])
-
-st.sidebar.subheader('', divider='gray')
-st.sidebar.subheader('Powered by: Edon Gomes Leite')
-
-#Filtro de Países
-todos_paises=df['country'].isin(paises) 
-df=df.loc[todos_paises, :]
+df_raw = load_data()
+df = clean_data(df_raw)
 
 # ==================================================
-# Layout no Streamliy
+# Sidebar
 # ==================================================
-st.title('Visão de Negócio - Cidades')
-st.subheader('', divider='gray') 
+try:
+    image = Image.open("cidade.jpg")
+    st.sidebar.image(image, width=250)
+except:
+    st.sidebar.warning("Imagem não encontrada")
 
-st.subheader('Informações úteis para tomadas de decisões de negócio com base nas cidades:')
-st.subheader('', divider='gray')
+st.sidebar.title("Zomato Restaurants")
+st.sidebar.subheader("For the love of Food")
+st.sidebar.divider()
 
-with st.container():
-    fig=qnt_rest_cid(df)
-    st.plotly_chart(fig, use_container_width=True)
-        
-st.subheader('', divider='gray')
+paises = st.sidebar.multiselect(
+    "Selecione os países:",
+    sorted(df["country"].unique()),
+    default=[
+        "Brazil",
+        "Canada",
+        "Indonesia",
+        "New Zeland",
+        "Philippines",
+        "Qatar",
+        "South Africa",
+        "United Arab Emirates",
+    ],
+)
 
-with st.container():
-    col1, col2=st.columns(2)
-        
-    with col1:        
-        fig=med_acima4(df)
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col2: 
-        fig=med_acima2(df)
-        st.plotly_chart(fig, use_container_width=True)   
-           
-st.subheader('', divider='gray')
-        
-with st.container():
-    fig=faz_rev(df)
-    st.plotly_chart(fig, use_container_width=True)
-    
-st.subheader('', divider='gray')
-    
-with st.container():
-    col1, col2=st.columns(2)
-        
-    with col1: 
-        fig=qnt_ent(df)
-        st.plotly_chart(fig, use_container_width=True)   
-        
-    with col2:
-        fig=ped_online(df)
-        st.plotly_chart(fig, use_container_width=True)
+if st.sidebar.button("🔄 Atualizar dados"):
+    st.cache_data.clear()
+    st.rerun()
+
+st.sidebar.divider()
+st.sidebar.caption("Powered by: Edon Gomes Leite")
+
+# ==================================================
+# Filtro
+# ==================================================
+df = df[df["country"].isin(paises)]
+
+# ==================================================
+# Layout Principal
+# ==================================================
+st.title("Visão de Negócio - Cidades")
+st.divider()
+
+st.subheader("Informações úteis para tomadas de decisão com base nas cidades")
+
+st.plotly_chart(qnt_rest_cid(df), use_container_width=True)
+
+st.divider()
+col1, col2 = st.columns(2)
+col1.plotly_chart(med_acima(df, 4.0, "Top 8 cidades com avaliações ≥ 4.0"), use_container_width=True)
+col2.plotly_chart(med_acima(df, 2.5, "Top 8 cidades com avaliações ≥ 2.5"), use_container_width=True)
+
+st.divider()
+st.plotly_chart(faz_rev(df), use_container_width=True)
+
+st.divider()
+col1, col2 = st.columns(2)
+col1.plotly_chart(qnt_ent(df), use_container_width=True)
+col2.plotly_chart(ped_online(df), use_container_width=True)
